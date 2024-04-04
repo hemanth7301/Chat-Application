@@ -1,6 +1,6 @@
 import Conversation from "../models/conversation.model.js";
 import Message from "../models/message.model.js";
-import { ObjectId } from "mongoose";
+import { getReceiverSocketId, io } from "../socket/socket.js";
 
 export const sendMessage = async (req, res) => {
   try {
@@ -24,9 +24,13 @@ export const sendMessage = async (req, res) => {
       conversation.messages.push(newMessage._id);
     }
     await Promise.all([conversation.save(), newMessage.save()]);
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      // io.to(<socket_id>).emit() used to send events to specific client
+      io.to(receiverSocketId).emit("newMessage", newMessage);
+    }
     res.status(201).json(newMessage);
   } catch (error) {
-    console.log(error.message);
     res.status(500).json({ error: "unable to send msg" });
   }
 };
@@ -46,7 +50,6 @@ export const getMessages = async (req, res) => {
 
     res.status(201).json(conversation.messages);
   } catch (error) {
-    console.log(error);
     res.status(500).json({ error: "Unable to getMessage" });
   }
 };
